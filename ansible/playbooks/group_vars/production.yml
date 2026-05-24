@@ -1,0 +1,31 @@
+---
+# Production environment specific variables
+
+environment: production
+domain: pagasa-demo.example.com
+
+# Application settings
+app_version: v1.0.0  # Deploy specific tagged versions in production
+docker_compose_file: docker-compose.prod.yml
+
+# Database settings (production)
+postgres_db: weather_demo_prod
+postgres_user: demo_user
+postgres_password: "{{ lookup('env', 'PROD_POSTGRES_PASSWORD') | default('CHANGE_ME_IN_PRODUCTION', true) }}"
+
+# Redis settings
+redis_password: "{{ lookup('env', 'PROD_REDIS_PASSWORD') | default('CHANGE_ME_IN_PRODUCTION', true) }}"
+
+# Resource settings (production)
+backend_replicas: 2
+frontend_replicas: 2
+
+# Monitoring (longer retention for production)
+prometheus_retention_days: 30
+
+# Security
+ufw_enabled: true
+
+# Backup settings
+backup_enabled: true
+backup_retention_days: 30

@@ -1,0 +1,26 @@
+---
+# Provision playbook - Server setup only
+
+- name: Provision servers
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Display provisioning start message
+      debug:
+        msg: "Starting server provisioning for {{ inventory_hostname }}"
+
+  roles:
+    - common
+    - docker
+
+  post_tasks:
+    - name: Verify Docker is running
+      command: docker ps
+      changed_when: false
+      register: docker_status
+
+    - name: Display provisioning complete message
+      debug:
+        msg:
+          - "Server provisioning complete!"
+          - "Docker status: {{ 'Running' if docker_status.rc == 0 else 'Failed' }}"

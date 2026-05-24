@@ -1,0 +1,63 @@
+---
+# Main playbook - Complete deployment
+
+- name: Provision servers
+  hosts: webservers
+  become: yes
+  roles:
+    - common
+    - docker
+
+- name: Deploy application
+  hosts: webservers
+  become: yes
+  roles:
+    - app
+
+- name: Setup monitoring
+  hosts: monitoring
+  become: yes
+  roles:
+    - monitoring
+
+- name: Post-deployment verification
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Check backend health
+      uri:
+        url: "http://localhost:8000/health"
+        method: GET
+        status_code: 200
+      register: backend_health
+
+    - name: Check frontend
+      uri:
+        url: "http://localhost:3000"
+        method: GET
+        status_code: 200
+      register: frontend_health
+
+    - name: Check Prometheus
+      uri:
+        url: "http://localhost:9090/-/ready"
+        method: GET
+        status_code: 200
+      register: prometheus_health
+
+    - name: Check Grafana
+      uri:
+        url: "http://localhost:{{ grafana_port }}/api/health"
+        method: GET
+        status_code: 200
+      register: grafana_health
+
+    - name: Display deployment summary
+      debug:
+        msg:
+          - "=== Deployment Summary ==="
+          - "Backend: {{ 'OK' if backend_health.status == 200 else 'FAILED' }}"
+          - "Frontend: {{ 'OK' if frontend_health.status == 200 else 'FAILED' }}"
+          - "Prometheus: {{ 'OK' if prometheus_health.status == 200 else 'FAILED' }}"
+          - "Grafana: {{ 'OK' if grafana_health.status == 200 else 'FAILED' }}"
+          - "=========================="

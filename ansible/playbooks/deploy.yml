@@ -1,0 +1,43 @@
+---
+# Deploy playbook - Application deployment only
+
+- name: Deploy PAGASA Weather Demo application
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Display deployment start message
+      debug:
+        msg:
+          - "Starting deployment for {{ inventory_hostname }}"
+          - "Environment: {{ environment }}"
+          - "Version: {{ app_version }}"
+
+  roles:
+    - app
+
+  post_tasks:
+    - name: Wait for services to stabilize
+      pause:
+        seconds: 10
+
+    - name: Check all services
+      uri:
+        url: "{{ item.url }}"
+        method: GET
+        status_code: 200
+      loop:
+        - { name: "Backend Health", url: "http://localhost:8000/health" }
+        - { name: "Backend Ready", url: "http://localhost:8000/ready" }
+        - { name: "Backend Version", url: "http://localhost:8000/version" }
+        - { name: "Frontend", url: "http://localhost:3000" }
+      register: service_checks
+
+    - name: Display deployment summary
+      debug:
+        msg:
+          - "=== Deployment Complete ==="
+          - "All services are running"
+          - "Backend: http://{{ ansible_host }}:8000"
+          - "Frontend: http://{{ ansible_host }}:3000"
+          - "API Docs: http://{{ ansible_host }}:8000/docs"
+          - "==========================="

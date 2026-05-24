@@ -1,0 +1,20 @@
+---
+# Monitoring role handlers
+
+- name: Restart Prometheus
+  community.docker.docker_container:
+    name: prometheus
+    state: started
+    restart: yes
+
+- name: Restart Alertmanager
+  community.docker.docker_container:
+    name: alertmanager
+    state: started
+    restart: yes
+
+- name: Restart Grafana
+  community.docker.docker_container:
+    name: grafana
+    state: started
+    restart: yes

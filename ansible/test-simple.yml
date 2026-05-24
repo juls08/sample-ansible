@@ -1,0 +1,5 @@
+---
+- hosts: monitoring
+  tasks:
+    - debug:
+        var: deploy_user

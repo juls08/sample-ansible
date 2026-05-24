@@ -1,0 +1,81 @@
+---
+# Common role - Base server setup tasks
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+
+- name: Install essential packages
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - git
+      - vim
+      - htop
+      - net-tools
+      - ufw
+      - python3-pip
+      - python3-setuptools
+      - acl
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Create deployment user
+  user:
+    name: "{{ deploy_user }}"
+    shell: /bin/bash
+    groups: sudo
+    append: yes
+    create_home: yes
+    state: present
+
+- name: Set authorized key for deploy user
+  authorized_key:
+    user: "{{ deploy_user }}"
+    state: present
+    key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+  ignore_errors: yes
+
+- name: Configure UFW defaults
+  ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: 'incoming', policy: 'deny' }
+    - { direction: 'outgoing', policy: 'allow' }
+  when: ufw_enabled
+
+- name: Configure UFW rules
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ allowed_ports }}"
+  when: ufw_enabled
+
+- name: Enable UFW
+  ufw:
+    state: enabled
+  when: ufw_enabled
+
+- name: Set timezone to Asia/Manila
+  timezone:
+    name: Asia/Manila
+
+- name: Configure NTP
+  apt:
+    name: systemd-timesyncd
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Start and enable NTP service
+  systemd:
+    name: systemd-timesyncd
+    state: started
+    enabled: yes

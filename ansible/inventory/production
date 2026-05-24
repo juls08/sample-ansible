@@ -1,0 +1,9 @@
+[webservers]
+prod-server ansible_host=gmstdevops.com ansible_user=root
+
+[monitoring]
+prod-server
+
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3
+environment=production

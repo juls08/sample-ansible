@@ -1,0 +1,9 @@
+---
+- hosts: monitoring
+  gather_facts: yes
+  pre_tasks:
+    - debug:
+        var: deploy_user
+  tasks:
+    - debug:
+        msg: "In tasks: {{ deploy_user }}"

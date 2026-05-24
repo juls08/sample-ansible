@@ -1,0 +1,8 @@
+---
+- name: Test variable loading
+  hosts: monitoring
+  gather_facts: no
+  tasks:
+    - name: Show deploy_user
+      debug:
+        msg: "deploy_user is {{ deploy_user }}"

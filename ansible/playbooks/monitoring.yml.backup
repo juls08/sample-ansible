@@ -1,0 +1,55 @@
+---
+# Monitoring playbook - Deploy monitoring stack only
+
+- name: Deploy monitoring stack
+  hosts: monitoring
+  become: no  # Temporarily disabled for testing
+  gather_facts: yes
+  
+  pre_tasks:
+    - name: Verify deploy_user is set
+      debug:
+        var: deploy_user
+  
+  tasks:
+    - name: Display monitoring setup start message
+      debug:
+        msg:
+          - "Setting up monitoring for {{ inventory_hostname }}"
+          - "Environment: {{ environment }}"
+
+  roles:
+    - monitoring
+
+  post_tasks:
+    - name: Wait for monitoring services to stabilize
+      pause:
+        seconds: 15
+
+    - name: Verify all monitoring services
+      uri:
+        url: "{{ item.url }}"
+        method: GET
+        status_code: 200
+      loop:
+        - { name: "Prometheus", url: "http://localhost:9090/-/ready" }
+        - { name: "Grafana", url: "http://localhost:{{ grafana_port }}/api/health" }
+        - { name: "Node Exporter", url: "http://localhost:9100/metrics" }
+        - { name: "cAdvisor", url: "http://localhost:8080/healthz" }
+      register: monitoring_checks
+      ignore_errors: yes
+
+    - name: Display monitoring access information
+      debug:
+        msg:
+          - "=== Monitoring Stack Deployed ==="
+          - "Prometheus: http://{{ ansible_host }}:9090"
+          - "Grafana: http://{{ ansible_host }}:{{ grafana_port }}"
+          - "  Username: {{ grafana_admin_user }}"
+          - "  Password: {{ grafana_admin_password }}"
+          - "Node Exporter: http://{{ ansible_host }}:9100/metrics"
+          - "cAdvisor: http://{{ ansible_host }}:8080"
+          - ""
+          - "Pre-configured dashboards are available in Grafana"
+          - "Alerts are configured in Prometheus"
+          - "=================================="

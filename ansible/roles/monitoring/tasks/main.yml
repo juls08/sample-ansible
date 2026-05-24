@@ -1,0 +1,147 @@
+---
+# Monitoring role - Deploy Prometheus, Grafana, Node Exporter, cAdvisor
+
+- name: Create monitoring directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0755'
+  loop:
+    - /opt/monitoring
+    - /opt/monitoring/prometheus
+    - /opt/monitoring/prometheus/data
+    - /opt/monitoring/grafana
+    - /opt/monitoring/grafana/data
+    - /opt/monitoring/alertmanager
+    - /opt/monitoring/alertmanager/data
+
+- name: Create Prometheus configuration
+  template:
+    src: prometheus.yml.j2
+    dest: /opt/monitoring/prometheus/prometheus.yml
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0644'
+  notify: Restart Prometheus
+
+- name: Create Prometheus alert rules
+  template:
+    src: alert_rules.yml.j2
+    dest: /opt/monitoring/prometheus/alert_rules.yml
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0644'
+  notify: Restart Prometheus
+
+- name: Create Alertmanager configuration
+  template:
+    src: alertmanager.yml.j2
+    dest: /opt/monitoring/alertmanager/alertmanager.yml
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0644'
+  when: alertmanager_enabled
+  notify: Restart Alertmanager
+
+- name: Create Grafana provisioning directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0755'
+  loop:
+    - /opt/monitoring/grafana/provisioning
+    - /opt/monitoring/grafana/provisioning/datasources
+    - /opt/monitoring/grafana/provisioning/dashboards
+
+- name: Create Grafana datasource configuration
+  template:
+    src: grafana-datasource.yml.j2
+    dest: /opt/monitoring/grafana/provisioning/datasources/prometheus.yml
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0644'
+
+- name: Create Grafana dashboard provisioning
+  template:
+    src: grafana-dashboard-provider.yml.j2
+    dest: /opt/monitoring/grafana/provisioning/dashboards/default.yml
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0644'
+
+- name: Copy Grafana dashboards
+  copy:
+    src: "{{ item }}"
+    dest: /opt/monitoring/grafana/provisioning/dashboards/
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0644'
+  with_fileglob:
+    - "dashboards/*.json"
+
+- name: Create monitoring Docker Compose file
+  template:
+    src: docker-compose-monitoring.yml.j2
+    dest: /opt/monitoring/docker-compose.yml
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0644'
+
+- name: Set correct permissions for monitoring data directories
+  file:
+    path: "{{ item }}"
+    owner: "65534"  # nobody user for prometheus
+    group: "65534"
+    mode: '0755'
+    recurse: yes
+  loop:
+    - /opt/monitoring/prometheus/data
+    - /opt/monitoring/alertmanager/data
+
+- name: Set correct permissions for Grafana data directory
+  file:
+    path: /opt/monitoring/grafana/data
+    owner: "472"  # grafana user
+    group: "472"
+    mode: '0755'
+    recurse: yes
+
+- name: Deploy monitoring stack
+  community.docker.docker_compose:
+    project_src: /opt/monitoring
+    state: present
+    restarted: yes
+  become_user: "{{ deploy_user }}"
+
+- name: Wait for Prometheus to be ready
+  uri:
+    url: "http://localhost:9090/-/ready"
+    method: GET
+    status_code: 200
+  retries: 30
+  delay: 2
+  register: result
+  until: result.status == 200
+
+- name: Wait for Grafana to be ready
+  uri:
+    url: "http://localhost:{{ grafana_port }}/api/health"
+    method: GET
+    status_code: 200
+  retries: 30
+  delay: 2
+  register: result
+  until: result.status == 200
+
+- name: Display monitoring URLs
+  debug:
+    msg:
+      - "Prometheus: http://{{ ansible_host }}:9090"
+      - "Grafana: http://{{ ansible_host }}:{{ grafana_port }}"
+      - "Grafana credentials: {{ grafana_admin_user }} / {{ grafana_admin_password }}"
+      - "Node Exporter metrics: http://{{ ansible_host }}:9100/metrics"
+      - "cAdvisor: http://{{ ansible_host }}:8080"

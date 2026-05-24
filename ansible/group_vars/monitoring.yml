@@ -1,0 +1,12 @@
+---
+# Monitoring group overrides for local testing
+
+# Use current user for local testing
+deploy_user: juls
+
+# Docker settings for local testing
+docker_users:
+  - juls
+
+# Security (disabled for local testing)
+ufw_enabled: false

@@ -1,0 +1,18 @@
+---
+- name: Deploy monitoring stack
+  hosts: monitoring
+  become: no
+  gather_facts: yes
+  
+  pre_tasks:
+    - name: Display monitoring setup
+      debug:
+        msg: "Setting up monitoring for {{ inventory_hostname }} (user: {{ deploy_user }})"
+  
+  roles:
+    - monitoring
+  
+  post_tasks:
+    - name: Display completion message
+      debug:
+        msg: "Monitoring stack deployment complete"

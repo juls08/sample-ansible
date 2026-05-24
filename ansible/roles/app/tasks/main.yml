@@ -1,0 +1,83 @@
+---
+# Application deployment role
+
+- name: Create deployment directory
+  file:
+    path: "{{ deploy_path }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0755'
+
+- name: Clone or update repository
+  git:
+    repo: "{{ app_repo }}"
+    dest: "{{ deploy_path }}"
+    version: "{{ app_version }}"
+    force: yes
+  become_user: "{{ deploy_user }}"
+
+- name: Create data directories
+  file:
+    path: "{{ deploy_path }}/{{ item }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0755'
+  loop:
+    - data/uploads
+    - data/processed
+    - data/results
+    - backend/data/uploads
+    - backend/data/processed
+    - backend/data/results
+
+- name: Create .env file for application
+  template:
+    src: app.env.j2
+    dest: "{{ deploy_path }}/.env"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0600'
+
+- name: Pull latest Docker images
+  community.docker.docker_compose:
+    project_src: "{{ deploy_path }}"
+    files:
+      - "{{ docker_compose_file }}"
+    pull: yes
+  become_user: "{{ deploy_user }}"
+
+- name: Deploy application with Docker Compose
+  community.docker.docker_compose:
+    project_src: "{{ deploy_path }}"
+    files:
+      - "{{ docker_compose_file }}"
+    state: present
+    restarted: yes
+  become_user: "{{ deploy_user }}"
+  register: docker_output
+
+- name: Wait for backend health check
+  uri:
+    url: "http://localhost:8000/health"
+    method: GET
+    status_code: 200
+  retries: 30
+  delay: 2
+  register: result
+  until: result.status == 200
+
+- name: Wait for frontend to be available
+  uri:
+    url: "http://localhost:3000"
+    method: GET
+    status_code: 200
+  retries: 30
+  delay: 2
+  register: result
+  until: result.status == 200
+
+- name: Display deployment status
+  debug:
+    msg: "Application deployed successfully at {{ ansible_date_time.iso8601 }}"

@@ -1,0 +1,35 @@
+# Ansible setup for deployment automation with monitoring
+
+# Sensitive files that should not be committed
+*.retry
+*.log
+
+# Encrypted vault files (backup)
+*.vault.yml
+
+# Temporary files
+.ansible/
+*.tmp
+
+# Environment specific secrets
+group_vars/*/vault.yml
+host_vars/*/vault.yml
+
+# Local testing
+.vagrant/
+*.box
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

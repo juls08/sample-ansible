@@ -1,0 +1,36 @@
+---
+# Staging environment specific variables
+
+environment: staging
+domain: localhost
+
+# For local testing - use current user instead of 'deploy'
+deploy_user: juls
+deploy_path: /opt/pagasa-weather-demo
+
+# Docker settings for local testing
+docker_users:
+  - juls
+
+# Application settings
+app_version: main
+docker_compose_file: docker-compose.yml
+app_repo: https://github.com/yourusername/pagasa-weather-demo.git  # Update with your repo URL
+
+# Database settings (staging)
+postgres_db: pagasa
+postgres_user: pagasa
+postgres_password: pagasa
+
+# Redis settings
+redis_password: 
+
+# Resource limits (lighter for staging)
+backend_replicas: 1
+frontend_replicas: 1
+
+# Monitoring
+prometheus_retention_days: 7
+
+# Security (disabled for local testing)
+ufw_enabled: false
