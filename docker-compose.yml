@@ -1,0 +1,91 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: pagasa-postgres
+    cgroup: host
+    environment:
+      POSTGRES_DB: pagasa
+      POSTGRES_USER: pagasa
+      POSTGRES_PASSWORD: pagasa
+    ports:
+      - "5432:5432"
+    volumes:
+      - pagasa_pg_data:/var/lib/postgresql
+
+  redis:
+    image: redis:8
+    container_name: pagasa-redis
+    cgroup: host
+    ports:
+      - "6379:6379"
+
+  backend:
+    build: ./backend
+    container_name: pagasa-backend
+    cgroup: host
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/data:/app/data
+    environment:
+      APP_VERSION: "1.0.0"
+      GIT_SHA: "local"
+      POSTGRES_DB: pagasa
+      POSTGRES_USER: pagasa
+      POSTGRES_PASSWORD: pagasa
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - default
+      - monitoring_monitoring
+
+  frontend:
+    build: ./frontend
+    container_name: pagasa-frontend
+    cgroup: host
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    cgroup: host
+    environment:
+      DATA_SOURCE_NAME: "postgresql://pagasa:pagasa@pagasa-postgres:5432/pagasa?sslmode=disable"
+    ports:
+      - "9187:9187"
+    depends_on:
+      - postgres
+    networks:
+      - default
+      - monitoring_monitoring
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    cgroup: host
+    environment:
+      REDIS_ADDR: "pagasa-redis:6379"
+    ports:
+      - "9121:9121"
+    depends_on:
+      - redis
+    networks:
+      - default
+      - monitoring_monitoring
+
+volumes:
+  pagasa_pg_data:
+
+networks:
+  default:
+  monitoring_monitoring:
+    external: true
